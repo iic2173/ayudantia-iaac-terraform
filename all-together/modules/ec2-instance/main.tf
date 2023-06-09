@@ -7,8 +7,7 @@ resource "aws_instance" "my_instance" {
   key_name               = "ayudantia-iaac-terraform"
   vpc_security_group_ids = [aws_security_group.my_security_group.id]
 
-  tags = var.tags
-
+  tags      = var.tags
   user_data = file("${path.module}/install_nginx.sh")
 
 }
@@ -45,6 +44,13 @@ resource "aws_security_group" "my_security_group" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
