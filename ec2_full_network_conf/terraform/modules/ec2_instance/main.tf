@@ -1,7 +1,6 @@
 # AWS Docs: https://registry.terraform.io/providers/hashicorp/aws/latest/docs
 
 # Steps:
-# 0. Select a provider                                                          https://registry.terraform.io/providers/hashicorp/aws/latest
 # 1. Create a VPC                                                               https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
 # 2. Create an Internet Gateway and attach it to the VPC                        https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/internet_gateway
 # 3. Create a Custom route table
@@ -13,20 +12,16 @@
 # 9. Create an EC2 instance with the network interface and security group       https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance
 # optional. Define output to display after apply                                https://developer.hashicorp.com/terraform/language/values/outputs
 
-
-# 0. Select a provider 
-provider "aws" {
-  region    = "us-east-1"
-}
-
 # 1. Create a VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
+  tags = var.tags
 }
 
 # 2. Create an Internet Gateway and attach it to the VPC
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
+  tags = var.tags
 }
 
 # 3. Create a Custom route table
@@ -37,13 +32,16 @@ resource "aws_route_table" "main" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.main.id
   }
+
+  tags = var.tags
 }
 
 # 4. Create a subnet
 resource "aws_subnet" "main" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.1.0/24"
-  availability_zone = "us-east-1b"
+  availability_zone = "${var.region}a"
+  tags = var.tags
 }
 
 # 5. Associate subnet with route table
@@ -92,6 +90,8 @@ resource "aws_security_group" "main" {
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
+
+  tags = var.tags
 }
 
 # 7. Create a network interface with an IP in the subnet
@@ -99,6 +99,7 @@ resource "aws_network_interface" "main" {
   subnet_id       = aws_subnet.main.id
   private_ips     = ["10.0.1.50"]
   security_groups = [aws_security_group.main.id]
+  tags = var.tags
 }
 
 # 8. Create Elastic IP and assign to network interface
@@ -106,17 +107,18 @@ resource "aws_eip" "main" {
   domain                    = "vpc"
   network_interface         = aws_network_interface.main.id
   associate_with_private_ip = "10.0.1.50"
-  depends_on = [ aws_internet_gateway.main ]
+  depends_on = [ aws_internet_gateway.main, aws_instance.main ]
+  tags = var.tags
 }
 
 # 9. Create an EC2 instance with the network interface and security group
 resource "aws_instance" "main" {
   ami           = "ami-0a0c8eebcdd6dcbd0" # Ubuntu Server 22.04 LTS (64-bit (Arm))
-  instance_type = "t4g.small"
-  availability_zone = "us-east-1b"
-  key_name = "iic2173"
+  instance_type = var.ec2_instance_type
+  availability_zone = "${var.region}a"
+  key_name = var.ec2_pem_key
 
-  user_data = "${file("./scripts/deployment.sh")}"
+  user_data = file("${path.module}/deployment.sh")
 
   network_interface {
     network_interface_id = aws_network_interface.main.id
@@ -126,13 +128,6 @@ resource "aws_instance" "main" {
   credit_specification {
     cpu_credits = "standard"
   }
+
+  tags = var.tags
 }
-
-# Output to dislay after `terraform apply`
-  output "elastic_ip" {
-    value = aws_eip.main.public_ip
-  }
-
-  output "ssh_command" {
-    value = "ssh -i ${aws_instance.main.key_name}.pem ubuntu@${aws_eip.main.public_ip}"
-  }

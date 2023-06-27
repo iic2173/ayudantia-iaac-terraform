@@ -25,6 +25,7 @@ provider "aws" {
 }
 
 # 1. Create a new EC2 instance
+
 resource "aws_instance" "my_instance" {
   ami           = "ami-053b0d53c279acc90" # AMI ID for Ubuntu 20.04 LTS (free tier) # Find an AMI: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html
   instance_type = "t2.micro"
@@ -33,9 +34,9 @@ resource "aws_instance" "my_instance" {
   vpc_security_group_ids = [aws_security_group.my_security_group.id]
 
   # user_data is used to run an script after provisioning the instance
-  user_data = "${file("./scripts/deployment.sh")}"
+  # user_data = "${file("./scripts/deployment.sh")}"
   tags = {
-    Name = "ayudantia-iaac"
+    Name = "ayudantia-iac"
   }
 }
 
